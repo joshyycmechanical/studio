@@ -1,0 +1,29 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+.cache/
+coverage/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+firebase-service-account*.json
+service-account*.json
+
+# Editors / OS
+.vscode/**/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+
+# Firebase
+.firebase/
+.firebaserc.local
+storage-debug.log
+ui-debug.log

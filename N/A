@@ -1,0 +1,91 @@
+While I can't directly log into your Firebase project and create the collections for you through the Firebase console, I can provide you with the code structure and guidance on how to ensure these collections are created when your application first interacts with them.
+
+**How Firestore Collections are Created:**
+
+Firestore automatically creates collections (and documents) the first time you write data to a specific path that doesn't exist yet. So, the primary way to "create" these collections is by writing the first document into each one using your application code.
+
+**Implementation Strategy:**
+
+Instead of trying to pre-create empty collections, the standard approach is to ensure your application logic correctly writes the first document when needed. For example:
+
+1.  **`companies` Collection:** Created during the signup process (as implemented in `src/app/api/companies/route.ts` or the `createInitialUserAndCompanyRecords` function within `src/app/signup/page.tsx`).
+2.  **`users` Collection:** Also created during signup.
+3.  **`roles` Collection:** Created when a company first defines a custom role or when default roles are cloned/seeded for a new company (this seeding logic needs to be implemented, likely in a Firebase Function triggered by company creation).
+4.  **`user_roles` Collection:** Created during signup (linking the first admin) and whenever a user's roles are assigned/updated via the Users management page.
+5.  **`customers`, `locations`, `equipment`, `work_orders`, etc.:** These collections will be created automatically the *first time* a user in a specific company uses the corresponding "Create New..." functionality in the app (e.g., creating the first customer for company 'ABC HVAC' will create the `customers` collection if it doesn't exist).
+
+**Code Examples (Illustrative):**
+
+You already have the necessary structure in place for creating users and potentially companies during signup. For other collections, the "Create New..." pages need to implement the actual Firestore `addDoc` or `setDoc` calls.
+
+Here's an example of how the "Create New Customer" functionality in `src/app/(app)/customers/new/page.tsx` should be modified to interact with Firestore (replace the `// TODO: Implement API call` section):
+
+```typescript
+// src/app/(app)/customers/new/page.tsx
+
+import { collection, addDoc, Timestamp } from 'firebase/firestore'; // Import Firestore functions
+import { db } from '@/lib/firebase/config'; // Import db instance
+import { COLLECTIONS } from '@/lib/firebase/collections'; // Import collection names
+// ... other imports
+
+export default function NewCustomerPage() {
+  // ... existing state and form setup ...
+  const { user, companyId } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onSubmit = async (data: CustomerFormData) => {
+    if (!companyId || !user?.id) { // Ensure user.id is also available
+       toast({ variant: "destructive", title: "Error", description: "Missing company or user context." });
+       return;
+    }
+    setIsSubmitting(true);
+    console.log("Submitting New Customer Data to Firestore:", data);
+
+    try {
+       // --- Firestore Interaction ---
+       if (!db) {
+            throw new Error("Firestore is not initialized.");
+       }
+       const customersCollectionRef = collection(db, COLLECTIONS.CUSTOMERS);
+
+       // Data to save (ensure it matches the Customer type, excluding id)
+       const newCustomerData = {
+           ...data,
+           company_id: companyId, // Add companyId
+           created_at: Timestamp.now(), // Use Firestore Timestamp
+           // Add created_by if needed: created_by: user.id,
+       };
+
+       const docRef = await addDoc(customersCollectionRef, newCustomerData);
+       console.log("Customer document written with ID: ", docRef.id);
+       // --- End Firestore Interaction ---
+
+       toast({
+        title: "Customer Created",
+        description: `Customer "${data.name}" has been successfully created.`,
+       });
+       router.push('/customers'); // Redirect back to the list page
+
+    } catch (error: any) {
+       console.error("Failed to create customer:", error);
+       toast({
+        variant: "destructive",
+        title: "Creation Failed",
+        description: error.message || "Could not create the customer. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ... rest of the component ...
+}
+```
+
+**Summary:**
+
+You don't need to manually create collections beforehand. The key is to implement the "Create New..." functionality for each module (Customers, Locations, Work Orders, etc.) correctly using the Firebase SDK (`addDoc` or `setDoc` with `collection`). The first time you successfully add a document to a path like `customers`, Firestore will create that collection automatically within your project.
+
+I have already implemented the basic API routes and mock services. You would need to replace the mock logic within those files (or directly in the page components/Server Actions) with these Firestore write operations.

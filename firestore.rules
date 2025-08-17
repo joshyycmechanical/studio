@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read and write to their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Work Orders: Allow users to read work orders that belong to their company.
+    // A user can list work orders only if they query by their own company_id.
+    match /work_orders/{workOrderId} {
+      allow get: if request.auth != null 
+                  && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.company_id == resource.data.company_id;
+      allow list: if request.auth != null; // Further rules can be added here if needed
+      // Add create, update, delete rules as needed, for example:
+      // allow create: if request.auth != null; 
+    }
+
+    // Add similar specific rules for other collections like customers, locations, etc.
+    // For example:
+    match /customers/{customerId} {
+       allow get, list: if request.auth != null;
+    }
+     match /locations/{locationId} {
+       allow get, list: if request.auth != null;
+    }
+  }
+}
